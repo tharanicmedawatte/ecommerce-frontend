@@ -21,7 +21,7 @@ export default function HomePage() {
 
   useEffect(() => {
     getProducts({ page: 1 })
-      .then(data => setProducts(data.products || data || []))
+      .then(data => setProducts(data.products || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
