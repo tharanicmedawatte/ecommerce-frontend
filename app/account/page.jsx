@@ -48,7 +48,7 @@ export default function AccountPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       const token = sess.accessToken;
 

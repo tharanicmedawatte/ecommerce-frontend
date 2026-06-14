@@ -122,12 +122,18 @@ export default function CheckoutPage() {
   async function initCheckout() {
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
 
       // Ask Flask to create a Stripe PaymentIntent
       // Flask recalculates total from DB — we never trust a client-sent amount
-      const data = await createPaymentIntent(sess.accessToken);
+      const data = await createPaymentIntent(sess.accessToken, {
+      name: user.name || user.nickname,
+      address_line1: '123 Test Street',
+      city: 'Colombo',
+      postal_code: '00100',
+      country: 'LK',
+    });
       setClientSecret(data.client_secret);
       setOrderId(data.order_id);
       setTotal(data.total || '0.00');
