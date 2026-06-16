@@ -60,7 +60,7 @@ export default function ProductsPage() {
       return;
     }
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       await addToCart(sess.accessToken, product.id, 1);
       setToast(`${product.name} added to cart!`);

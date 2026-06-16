@@ -28,10 +28,10 @@ export default function CartPage() {
   async function loadCart() {
     setLoading(true);
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       const data = await getCart(sess.accessToken);
-      setCart(data.cart || data);
+      setCart(data.data || data.cart || data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -42,7 +42,7 @@ export default function CartPage() {
   async function handleUpdate(itemId, quantity) {
     setUpdating(itemId);
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       if (quantity < 1) {
         await removeFromCart(sess.accessToken, itemId);

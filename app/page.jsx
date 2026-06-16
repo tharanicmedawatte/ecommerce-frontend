@@ -1,20 +1,15 @@
 'use client';
-// =============================================================================
-// app/page.jsx — Homepage
-// Shows: hero banner, featured products, category tiles.
-// Accessible to guests (no login required).
-// =============================================================================
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { getProducts } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
-import { addToCart, getCart } from '@/lib/api';
+import { addToCart } from '@/lib/api';
 import { ShoppingBag, Truck, Shield, RefreshCw } from 'lucide-react';
 
 export default function HomePage() {
-  const { user }              = useUser();
+  const { user }                = useUser();
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [toast, setToast]       = useState('');
@@ -27,12 +22,9 @@ export default function HomePage() {
   }, []);
 
   async function handleAddToCart(product) {
-    if (!user) {
-      window.location.href = '/api/auth/login';
-      return;
-    }
+    if (!user) { window.location.href = '/api/auth/login'; return; }
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       await addToCart(sess.accessToken, product.id, 1);
       setToast(`${product.name} added to cart!`);
@@ -45,39 +37,42 @@ export default function HomePage() {
 
   return (
     <div>
-      {/* Toast notification */}
+      {/* Toast */}
       {toast && (
-        <div className="fixed top-20 right-4 z-50 bg-brand-600 text-white
-                        px-5 py-3 rounded-xl shadow-lg text-sm font-medium
-                        animate-fade-in">
+        <div className="fixed top-20 right-4 z-50 bg-brand-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium">
           {toast}
         </div>
       )}
 
-      {/* Hero section */}
-      <section className="bg-gradient-to-br from-brand-900 via-brand-700
-                           to-brand-500 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24
-                        flex flex-col items-center text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold
-                         leading-tight mb-6">
-            Shop Smarter,<br />
-            <span className="text-brand-100">Live Better</span>
+      {/* Hero section with background image */}
+      <section className="relative text-white overflow-hidden">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1920&q=80')" }}
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-brand-900/70" />
+
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 flex flex-col items-center text-center">
+          <span className="text-5xl mb-4">🍁</span>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-6">
+            Welcome to<br />
+            <span className="text-brand-300">Maple & Moss</span>
           </h1>
-          <p className="text-brand-100 text-lg sm:text-xl max-w-xl mb-10">
-            Discover thousands of products at unbeatable prices.
-            Free shipping on orders over $50.
+          <p className="text-green-100 text-lg sm:text-xl max-w-xl mb-10">
+            Beautiful home goods for every room. From cosy textiles to timeless furniture —
+            crafted for the way you live.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/products"
-              className="bg-white text-brand-700 hover:bg-brand-50 font-bold
-                         px-8 py-4 rounded-full text-lg transition-colors shadow-lg">
+              className="bg-white text-brand-700 hover:bg-brand-50 font-bold px-8 py-4 rounded-full text-lg transition-colors shadow-lg">
               Shop Now
             </Link>
             {!user && (
               <a href="/api/auth/login"
-                className="border-2 border-white text-white hover:bg-white/10
-                           font-bold px-8 py-4 rounded-full text-lg transition-colors">
+                className="border-2 border-white text-white hover:bg-white/10 font-bold px-8 py-4 rounded-full text-lg transition-colors">
                 Create Account
               </a>
             )}
@@ -90,10 +85,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: Truck,      label: 'Free Shipping',    sub: 'On orders over $50' },
-              { icon: Shield,     label: 'Secure Payments',  sub: 'Powered by Stripe'  },
-              { icon: RefreshCw,  label: 'Easy Returns',     sub: '30-day policy'      },
-              { icon: ShoppingBag,label: '1000+ Products',   sub: 'New arrivals daily' },
+              { icon: Truck,       label: 'Free Shipping',   sub: 'On orders over LKR 5,000' },
+              { icon: Shield,      label: 'Secure Payments', sub: 'Powered by Stripe'         },
+              { icon: RefreshCw,   label: 'Easy Returns',    sub: '30-day policy'             },
+              { icon: ShoppingBag, label: '50+ Products',    sub: 'New arrivals regularly'    },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="flex items-center space-x-3">
                 <div className="bg-brand-50 p-3 rounded-xl">
@@ -113,15 +108,10 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Featured Products
-            </h2>
-            <p className="text-gray-500 mt-1">
-              Handpicked just for you
-            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Featured Products</h2>
+            <p className="text-gray-500 mt-1">Handpicked just for you</p>
           </div>
-          <Link href="/products"
-            className="text-brand-600 hover:text-brand-700 font-semibold text-sm">
+          <Link href="/products" className="text-brand-600 hover:text-brand-700 font-semibold text-sm">
             View all →
           </Link>
         </div>
@@ -129,8 +119,7 @@ export default function HomePage() {
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-sm border
-                                      border-gray-100 overflow-hidden animate-pulse">
+              <div key={i} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-pulse">
                 <div className="aspect-square bg-gray-200" />
                 <div className="p-4 space-y-2">
                   <div className="h-4 bg-gray-200 rounded w-3/4" />
@@ -148,11 +137,7 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.slice(0, 8).map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onAddToCart={handleAddToCart}
-              />
+              <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
             ))}
           </div>
         )}
@@ -161,27 +146,23 @@ export default function HomePage() {
       {/* Category tiles */}
       <section className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center">
-            Shop by Category
-          </h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center">Shop by Category</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { name: 'Electronics', emoji: '📱', slug: 'electronics' },
-              { name: 'Clothing',    emoji: '👗', slug: 'clothing'    },
-              { name: 'Books',       emoji: '📚', slug: 'books'       },
-              { name: 'Home',        emoji: '🏠', slug: 'home'        },
+              { name: 'Furniture',  emoji: '🛋️', slug: 'furniture' },
+              { name: 'Textiles',   emoji: '🛏️', slug: 'textiles'  },
+              { name: 'Kitchen',    emoji: '🍽️', slug: 'kitchen'   },
+              { name: 'Home Decor', emoji: '🖼️', slug: 'decor'     },
+              { name: 'Storage',    emoji: '🧺', slug: 'storage'   },
+              { name: 'Outdoor',    emoji: '🌿', slug: 'outdoor'   },
+              { name: 'Pets',       emoji: '🐾', slug: 'specialty' },
+              { name: 'Seasonal',   emoji: '✨', slug: 'specialty' },
             ].map(cat => (
-              <Link
-                key={cat.slug}
-                href={`/products?category=${cat.slug}`}
-                className="flex flex-col items-center justify-center py-10
-                           bg-gray-50 hover:bg-brand-50 border border-gray-100
-                           hover:border-brand-200 rounded-2xl transition-all
-                           group cursor-pointer"
-              >
-                <span className="text-4xl mb-3">{cat.emoji}</span>
-                <span className="font-semibold text-gray-800
-                                 group-hover:text-brand-700 transition-colors">
+              <Link key={cat.slug + cat.name} href={`/products?category=${cat.slug}`}
+                className="flex flex-col items-center justify-center py-8 bg-gray-50 hover:bg-brand-50
+                           border border-gray-100 hover:border-brand-200 rounded-2xl transition-all group cursor-pointer">
+                <span className="text-3xl mb-2">{cat.emoji}</span>
+                <span className="font-semibold text-gray-800 group-hover:text-brand-700 transition-colors text-sm">
                   {cat.name}
                 </span>
               </Link>
