@@ -4,7 +4,7 @@
 // Requires login. Shows profile info and past orders.
 // =============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getMe, getOrderHistory } from '@/lib/api';
@@ -30,7 +30,7 @@ function StatusBadge({ status }) {
   );
 }
 
-export default function AccountPage() {
+function AccountPageInner() {
   const { user: auth0User, isLoading: authLoading } = useUser();
   const router                                       = useRouter();
   const searchParams                                 = useSearchParams();
@@ -199,5 +199,13 @@ export default function AccountPage() {
         </a>
       </div>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto px-4 py-12 animate-pulse"><div className="h-8 bg-gray-200 rounded w-1/4" /></div>}>
+      <AccountPageInner />
+    </Suspense>
   );
 }

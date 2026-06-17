@@ -5,14 +5,14 @@
 // Accessible to guests — no login required to browse.
 // =============================================================================
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { getProducts, getCategories, addToCart } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
 import { SlidersHorizontal, X } from 'lucide-react';
 
-export default function ProductsPage() {
+function ProductsPageInner() {
   const { user }                        = useUser();
   const searchParams                    = useSearchParams();
   const [products, setProducts]         = useState([]);
@@ -40,7 +40,7 @@ export default function ProductsPage() {
         category: activeCategory,
         search: searchQuery,
       });
-      const items = data.data?.items || data.products || [];
+      const items = data.products || data || [];
       setProducts(prev => reset ? items : [...prev, ...items]);
       setHasMore(items.length === 20);    // assume 20 per page
       if (reset) setPage(1);
@@ -221,5 +221,13 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-8 animate-pulse"><div className="h-8 bg-gray-200 rounded w-1/4" /></div>}>
+      <ProductsPageInner />
+    </Suspense>
   );
 }
