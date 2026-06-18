@@ -12,24 +12,21 @@ export const GET = handleAuth({
 
   callback: handleCallback({
     async afterCallback(req, session) {
-      console.log('[Auth0 Callback] Session keys:', Object.keys(session || {}));
-      console.log('[Auth0 Callback] Has accessToken:', !!session?.accessToken);
       if (session?.accessToken) {
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/sync`, {
+          const syncRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/sync`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.accessToken}`,
               'Content-Type': 'application/json',
             },
           });
-          const text = await res.text();
-          console.log('[Auth0 Callback] Sync status:', res.status, 'body:', text);
+          console.log('[Auth0 Callback] Sync status:', syncRes.status);
         } catch (err) {
           console.error('[Auth0 Callback] Sync failed:', err.message);
         }
       } else {
-        console.warn('[Auth0 Callback] No accessToken in session — skipping sync');
+        console.warn('[Auth0 Callback] No accessToken — skipping sync');
       }
       return session;
     },
