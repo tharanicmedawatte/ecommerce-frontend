@@ -40,7 +40,7 @@ function ProductsPageInner() {
         category: activeCategory,
         search: searchQuery,
       });
-      const items = data.products || data || [];
+      const items = data.data?.items || data.products || [];
       setProducts(prev => reset ? items : [...prev, ...items]);
       setHasMore(items.length === 20);    // assume 20 per page
       if (reset) setPage(1);
