@@ -15,12 +15,14 @@ export const GET = handleAuth({
       if (session?.accessToken) {
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/sync`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.accessToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+          const text = await res.text();
+          console.log('[Auth0 Callback] Sync status:', res.status, 'body:', text);
           const data = await res.json();
           console.log('[Auth0 Callback] Sync response:', res.status, data);
         } catch (err) {
