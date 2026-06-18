@@ -14,7 +14,7 @@ export const GET = handleAuth({
     async afterCallback(req, session) {
       if (session?.accessToken) {
         try {
-          const res = await fetch('http://127.0.0.1:5000/auth/sync', {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/sync`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.accessToken}`,
