@@ -27,7 +27,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self'",
-              "connect-src 'self' http://127.0.0.1:5000 https://api.stripe.com https://*.auth0.com",
+              "connect-src 'self' http://127.0.0.1:5000 https://maple-and-moss-backend.onrender.com https://api.stripe.com https://*.auth0.com",
               "frame-src https://js.stripe.com https://*.auth0.com",
               "frame-ancestors 'none'",
             ].join('; '),
