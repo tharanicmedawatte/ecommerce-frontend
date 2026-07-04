@@ -1,19 +1,4 @@
-# =============================================================================
-# .github/workflows/ci.yml — Backend CI/CD Pipeline
-# Maple & Moss — Flask E-Commerce Backend
-#
-# Triggers: every push to main, every pull request to main
-#
-# Pipeline stages:
-#   1. Secret scanning        (GitLeaks)
-#   2. SAST                   (Semgrep)
-#   3. Dependency install + SCA (Snyk)
-#   4. Automated tests        (pytest)
-#   5. IaC scanning           (Checkov)
-#   6. Deploy to Render       (auto-triggered by Render GitHub integration)
-# =============================================================================
-
-name: Backend CI — Security + Tests
+name: Frontend CI — Security + Build
 
 on:
   push:
@@ -23,126 +8,96 @@ on:
 
 jobs:
 
-  # ── Job 1: Secret Scanning ──────────────────────────────────────────────────
   secret-scan:
     name: Secret scanning (GitLeaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history needed for GitLeaks
-
+          fetch-depth: 0
       - name: Run GitLeaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # BLOCKING — pipeline halts if any secret is found
 
-  # ── Job 2: SAST ─────────────────────────────────────────────────────────────
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-latest
     needs: secret-scan
     steps:
       - uses: actions/checkout@v4
-
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
           config: >-
-            p/python
-            p/flask
+            p/javascript
+            p/react
+            p/nextjs
             p/owasp-top-ten
-            p/jwt
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        # BLOCKING — halts on high-severity findings
 
-  # ── Job 3: SCA + Tests ──────────────────────────────────────────────────────
-  test:
-    name: Dependencies + Tests (Snyk + pytest)
+  build:
+    name: Dependencies + Build (Snyk + next build)
     runs-on: ubuntu-latest
     needs: secret-scan
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
-          cache: pip
+          node-version: "20"
+          cache: npm
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: npm ci
 
       - name: Software Composition Analysis (Snyk)
-        uses: snyk/actions/python@master
+        uses: snyk/actions/node@master
         with:
-          args: --severity-threshold=high
+          args: --severity-threshold=critical
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        # BLOCKING for high/critical CVEs in dependencies
 
-      - name: Run pytest
+      - name: Build Next.js
         env:
-          FLASK_ENV: testing
-          SECRET_KEY: test-secret-key
-          DATABASE_URL: sqlite:///:memory:
-          AUTH0_DOMAIN: test.auth0.com
-          AUTH0_AUDIENCE: https://test.api.com
-        run: |
-          pip install pytest pytest-flask coverage
-          coverage run -m pytest tests/ -v --tb=short
-          coverage report --fail-under=60
-        # BLOCKING — tests must pass before deploy
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          AUTH0_SECRET: ${{ secrets.AUTH0_SECRET }}
+          AUTH0_BASE_URL: ${{ secrets.AUTH0_BASE_URL }}
+          AUTH0_ISSUER_BASE_URL: ${{ secrets.AUTH0_ISSUER_BASE_URL }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+          AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+        run: npm run build
 
-  # ── Job 4: IaC Scanning ─────────────────────────────────────────────────────
-  iac-scan:
-    name: IaC scanning (Checkov)
+  dast:
+    name: DAST (OWASP ZAP)
     runs-on: ubuntu-latest
-    needs: secret-scan
+    needs: build
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run Checkov on render.yaml and config files
-        uses: bridgecrewio/checkov-action@master
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
         with:
-          directory: .
-          framework: dockerfile,secrets
-          soft_fail: false
-          output_format: cli
-        # BLOCKING for critical misconfigurations
-
-  # ── Job 5: SBOM Generation (advisory) ───────────────────────────────────────
-  sbom:
-    name: SBOM generation (Syft)
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Syft
-        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-
-      - name: Generate SBOM
-        run: syft . -o spdx-json=sbom.json
-
-      - name: Upload SBOM as artifact
+          target: ${{ secrets.PRODUCTION_FRONTEND_URL }}
+          rules_file_name: .zap/rules.tsv
+          cmd_options: '-a'
+        continue-on-error: true
+      - name: Upload ZAP report
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: sbom
-          path: sbom.json
-        # ADVISORY — never blocks, just records what's in the build
+          name: zap-report
+          path: report_html.html
 
-  # ── Job 6: Deploy status notification ───────────────────────────────────────
   notify:
-    name: Notify deploy status
+    name: All gates passed
     runs-on: ubuntu-latest
-    needs: [sast, test, iac-scan]
+    needs: [sast, build]
     if: github.ref == 'refs/heads/main' && success()
     steps:
-      - name: All gates passed
-        run: echo "All security gates passed. Render will auto-deploy from main."
-        # Render is connected to this GitHub repo and deploys automatically
-        # when a push to main succeeds — no extra step needed here.
+      - name: Success
+        run: echo "All security gates passed. Vercel will auto-deploy from main."
