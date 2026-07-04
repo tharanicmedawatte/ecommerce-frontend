@@ -1,0 +1,148 @@
+# =============================================================================
+# .github/workflows/ci.yml — Backend CI/CD Pipeline
+# Maple & Moss — Flask E-Commerce Backend
+#
+# Triggers: every push to main, every pull request to main
+#
+# Pipeline stages:
+#   1. Secret scanning        (GitLeaks)
+#   2. SAST                   (Semgrep)
+#   3. Dependency install + SCA (Snyk)
+#   4. Automated tests        (pytest)
+#   5. IaC scanning           (Checkov)
+#   6. Deploy to Render       (auto-triggered by Render GitHub integration)
+# =============================================================================
+
+name: Backend CI — Security + Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  # ── Job 1: Secret Scanning ──────────────────────────────────────────────────
+  secret-scan:
+    name: Secret scanning (GitLeaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for GitLeaks
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # BLOCKING — pipeline halts if any secret is found
+
+  # ── Job 2: SAST ─────────────────────────────────────────────────────────────
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/flask
+            p/owasp-top-ten
+            p/jwt
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        # BLOCKING — halts on high-severity findings
+
+  # ── Job 3: SCA + Tests ──────────────────────────────────────────────────────
+  test:
+    name: Dependencies + Tests (Snyk + pytest)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Software Composition Analysis (Snyk)
+        uses: snyk/actions/python@master
+        with:
+          args: --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # BLOCKING for high/critical CVEs in dependencies
+
+      - name: Run pytest
+        env:
+          FLASK_ENV: testing
+          SECRET_KEY: test-secret-key
+          DATABASE_URL: sqlite:///:memory:
+          AUTH0_DOMAIN: test.auth0.com
+          AUTH0_AUDIENCE: https://test.api.com
+        run: |
+          pip install pytest pytest-flask coverage
+          coverage run -m pytest tests/ -v --tb=short
+          coverage report --fail-under=60
+        # BLOCKING — tests must pass before deploy
+
+  # ── Job 4: IaC Scanning ─────────────────────────────────────────────────────
+  iac-scan:
+    name: IaC scanning (Checkov)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov on render.yaml and config files
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,secrets
+          soft_fail: false
+          output_format: cli
+        # BLOCKING for critical misconfigurations
+
+  # ── Job 5: SBOM Generation (advisory) ───────────────────────────────────────
+  sbom:
+    name: SBOM generation (Syft)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Syft
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: syft . -o spdx-json=sbom.json
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+        # ADVISORY — never blocks, just records what's in the build
+
+  # ── Job 6: Deploy status notification ───────────────────────────────────────
+  notify:
+    name: Notify deploy status
+    runs-on: ubuntu-latest
+    needs: [sast, test, iac-scan]
+    if: github.ref == 'refs/heads/main' && success()
+    steps:
+      - name: All gates passed
+        run: echo "All security gates passed. Render will auto-deploy from main."
+        # Render is connected to this GitHub repo and deploys automatically
+        # when a push to main succeeds — no extra step needed here.
