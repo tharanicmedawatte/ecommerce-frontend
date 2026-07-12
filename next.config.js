@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // Allow product images from any HTTPS source
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: '*.unsplash.com' },
     ],
+    domains: ['images.unsplash.com'],
   },
   // Expose publishable Stripe key to the browser
   env: {
