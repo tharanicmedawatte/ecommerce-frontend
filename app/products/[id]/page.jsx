@@ -39,7 +39,7 @@ export default function ProductDetailPage() {
     setAdding(true);
     setError('');
     try {
-      const res  = await fetch('/api/auth/me');
+      const res  = await fetch('/api/token');
       const sess = await res.json();
       await addToCart(sess.accessToken, product.id, quantity);
       setAdded(true);
