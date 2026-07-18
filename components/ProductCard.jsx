@@ -1,53 +1,61 @@
 'use client';
 // =============================================================================
 // components/ProductCard.jsx
-// Reusable card shown in product listing and homepage featured section.
+// Reusable product card with optimised WebP images.
 // =============================================================================
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { ShoppingCart, Star } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
+
+// Convert any Unsplash URL to WebP with optimised dimensions
+function optimiseImage(url, width = 400) {
+  if (!url) return null;
+  if (url.includes('unsplash.com')) {
+    // Strip existing params and add WebP + size params
+    const base = url.split('?')[0];
+    return `${base}?w=${width}&h=${width}&fit=crop&auto=format&fm=webp&q=70`;
+  }
+  return url;
+}
 
 export default function ProductCard({ product, onAddToCart }) {
-  const inStock = product.stock > 0;
+  const inStock  = product.stock > 0;
+  const imageUrl = optimiseImage(product.image_url, 400);
 
   return (
     <div className="group bg-white rounded-2xl shadow-sm border border-gray-100
-                    hover:shadow-md transition-all duration-200 overflow-hidden flex
-                    flex-col">
+                    hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col">
+
       {/* Product image */}
-      <Link href={`/products/${product.id}`} className="relative aspect-square
-                                                          overflow-hidden bg-gray-50">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
+      <Link href={`/products/${product.id}`}
+        className="relative aspect-square overflow-hidden bg-gray-50 block">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
             alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform
-                       duration-300"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center
-                          text-gray-300 text-4xl">
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">
             🛍️
           </div>
         )}
-        {/* Out of stock badge */}
+
+        {/* Out of stock overlay */}
         {!inStock && (
-          <div className="absolute inset-0 bg-black/40 flex items-center
-                          justify-center">
-            <span className="bg-white text-gray-800 text-xs font-semibold
-                             px-3 py-1 rounded-full">
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <span className="bg-white text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
               Out of Stock
             </span>
           </div>
         )}
+
         {/* Category badge */}
         {product.category && (
           <div className="absolute top-3 left-3">
-            <span className="bg-white/90 text-gray-700 text-xs font-medium
-                             px-2 py-1 rounded-full backdrop-blur-sm">
+            <span className="bg-white/90 text-gray-700 text-xs font-medium px-2 py-1 rounded-full backdrop-blur-sm">
               {product.category.name}
             </span>
           </div>
